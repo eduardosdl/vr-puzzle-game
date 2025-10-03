@@ -108,7 +108,7 @@ AFRAME.registerComponent("cubo-peca", {
 
     // face esquerda
     if (this.data.left === 1 || this.data.left === 2) {
-      const bottomCurve = this.data.bottom;
+      const bottomCurve = this.data.left;
       const xCurveCalc = size * 0.3;
       const xcurvepoints = bottomCurve === 1 ? xCurveCalc : -xCurveCalc;
 
