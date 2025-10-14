@@ -33,14 +33,14 @@
         position="3 1 -4"
         shadow="cast:true;receive:true"
         class="clickable"
-      ></a-entity>
+      ></a-entity> -->
       <a-entity
         puzzle-component="piece-2"
         puzzle-piece="top:0;left:1;bottom:0;right:0"
-        position="3 3 -4"
+        position="0 0 -4"
         shadow="cast:true;receive:true"
         class="clickable"
-      ></a-entity> -->
+      ></a-entity>
 
       <a-entity
         line-event
@@ -55,7 +55,7 @@
           raycaster="objects: .clickable"
           id="cursor"
           geometry="primitive: ring; radiusInner: 0.015; radiusOuter: 0.02;"
-          cursor="fuse: true; fuseTimeout: 1000"
+          cursor="fuse: false"
           material="color: black; shader: flat"
           position="0 0 -1"
         >

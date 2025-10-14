@@ -1,3 +1,7 @@
+/**
+ * analisar a implementação de validação ao movimentar peças
+ */
+
 /* ========== INFOS ========== */
 
 /**
@@ -72,64 +76,105 @@ class Line {
 const lineSelection = new Line();
 const cursor = document.querySelector("#cursor");
 
+// cursor.addEventListener("mouseenter", () => {
+//   cursor.setAttribute("animation__fill", {
+//     property: "geometry.radiusInner",
+//     to: "0",
+//     dur: 2000,
+//     easing: "linear",
+//   });
+// });
+
+// cursor.addEventListener("mouseleave", () => {
+//   cursor.setAttribute("geometry.radiusInner", "0.015");
+// });
+
 const pieceSize = 1;
 const pieceDepth = 1;
 const puzzleSize = 4;
 const zOffset = -4;
-const pieces = [];
+const heightInitGlobal = 1;
+const widthInitGlobal = -1.5;
 
 /* ========== INICIALIZAÇÃO ========== */
+const pieces = generatePieces();
+const shuffledPieces = embaralharArray(pieces);
+const piecesWithPositions = setPiecesPositions(shuffledPieces);
 mountPuzzleSkeleton();
-
-/* ========== AREA DE TESTES (executar funções no inicio para testar o codigo) ========== */
-
-generatePieces();
-
-pieces.forEach((piece) => {
-  mountPuzzlePiece(piece.name, piece.sides, piece.position);
+piecesWithPositions.forEach((piece, index) => {
+  mountPuzzlePiece(`piece-${index}`, piece.sides, piece.position);
 });
 
-console.log("Peças geradas", pieces);
-
-// mountPuzzlePiece(
-//   "piece-2",
-//   {
-//     top: 2,
-//     right: 0,
-//     bottom: 0,
-//     left: 1,
-//   },
-//   { x: 3, y: 3, z: zOffset }
-// );
+/* ========== AREA DE TESTES (executar funções no inicio para testar o codigo) ========== */
+const piecesAnswer = pieces.map((piece) => piece.id);
+const piecesUserMounted = new Array(puzzleSize * puzzleSize).fill(null);
+const positionedPieces = new Array(puzzleSize * puzzleSize).fill(null);
 
 /* ========== FUNÇÕES DO SISTEMA ========== */
 
 /* === EM DESENVOLVIMENTO === */
 
+/* === FUNCOES DE INICIAIS (metodos que devem ser chamados na inicialização) === */
+
+/** Define as posições das peças embaralhadas
+ * essa função recebe o array de peças embaralhadas
+ * e define a posição de cada peça para que elas fiquem
+ * distribuídas em uma grade ao lado do esqueleto
+ * @param {Array} pieces - Array de peças embaralhadas
+ */
+function setPiecesPositions(pieces) {
+  const heightInit = heightInitGlobal;
+  const widthInit = widthInitGlobal;
+  const gap = pieceSize;
+  const piecesWithPositions = pieces;
+
+  for (let row = 0; row < puzzleSize; row++) {
+    for (let col = 0; col < puzzleSize; col++) {
+      const position = {
+        x: widthInit + col * gap,
+        y: heightInit + row * 1.5 * gap,
+        z: zOffset,
+      };
+
+      if (col === 0) {
+        position.x = widthInit - 1.5 + col * gap;
+      }
+
+      if (col === 1) {
+        position.x = widthInit + 5 + col * gap;
+      }
+
+      if (col === 2) {
+        position.x = widthInit - 5 + col * gap;
+      }
+
+      if (col === 3) {
+        position.x = widthInit + 1.5 + col * gap;
+      }
+
+      piecesWithPositions[row * puzzleSize + col].position = position;
+    }
+  }
+
+  return piecesWithPositions;
+}
+
 /** Gera as peças do quebra-cabeça com lados que se encaixam
  * essa função cria as peças do quebra-cabeça e define os lados
  * de cada peça para que elas possam se encaixar corretamente
- *
- * TO-DO: remover a posição daqui para que as peças sejam
- * geradas em posições aleatórias ao lado do esqueleto
+ * @returns {Array} - Array de peças com lados definidos
  */
 function generatePieces() {
   let count = 0;
 
-  const heightInit = 0.5;
-  const widthInit = -1.5;
+  const heightInit = heightInitGlobal;
+  const widthInit = widthInitGlobal;
   const gap = pieceSize;
+  const pieces = [];
 
   for (let row = 0; row < puzzleSize; row++) {
     for (let col = 0; col < puzzleSize; col++) {
       count++;
-
-      const name = `piece-${count}`;
-      const position = {
-        x: widthInit + col * gap,
-        y: heightInit + row * gap,
-        z: zOffset,
-      };
 
       const topSide = row === puzzleSize - 1 ? 0 : randomSideShape();
       const rightSide = col === puzzleSize - 1 ? 0 : randomSideShape();
@@ -149,8 +194,7 @@ function generatePieces() {
           : 1;
 
       const piece = {
-        name,
-        position,
+        id: crypto.randomUUID(),
         sides: {
           top: topSide,
           right: rightSide,
@@ -162,17 +206,17 @@ function generatePieces() {
       pieces.push(piece);
     }
   }
-}
 
-/* === FUNCOES DE INICIAIS (metodos que devem ser chamados na inicialização) === */
+  return pieces;
+}
 
 /** Monta o esqueleto do quebra-cabeça na cena
  * Esse metodo vai ser utilizado para criar o guia visual
  * ele chama o metodo de criação passando os parametros de nome e posição
  */
 function mountPuzzleSkeleton() {
-  const heightInit = 0.5;
-  const widthInit = -1.5;
+  const heightInit = heightInitGlobal;
+  const widthInit = widthInitGlobal;
   const gap = pieceSize;
 
   let count = 0;
@@ -403,16 +447,65 @@ function embaralharArray(array) {
   return copia;
 }
 
+/**
+ * Configura o timeout de clique para um elemento
+ * essa função adiciona eventos de mouseenter e mouseleave
+ * para controlar o tempo necessário para emitir um clique
+ * @param {HTMLElement} element - Elemento HTML para configurar o timeout de clique
+ * @param {number} timeout - Tempo em milissegundos para emitir o clique (padrão: 2000ms)
+ */
+function setClickTimeout(element, name) {
+  const timeoutDuration = positionedPieces.includes(name) ? 5000 : 2000;
+  let clickTimeoutId = null;
+
+  element.addEventListener("mouseenter", () => {
+    cursor.setAttribute("animation__fill", {
+      property: "geometry.radiusInner",
+      to: "0",
+      dur: timeoutDuration,
+      easing: "linear",
+    });
+
+    clickTimeoutId = setTimeout(() => {
+      element.emit("click");
+      clickTimeoutId = null;
+    }, timeoutDuration);
+  });
+
+  element.addEventListener("mouseleave", () => {
+    if (clickTimeoutId) {
+      clearTimeout(clickTimeoutId);
+      clickTimeoutId = null;
+    }
+
+    cursor.removeAttribute("animation__fill");
+    cursor.setAttribute("geometry", {
+      primitive: "ring",
+      radiusInner: 0.015,
+      radiusOuter: 0.02,
+    });
+  });
+}
+
+function movePieceToPosition(pieceElement, position, skeletonName) {
+  const arrayPosition = parseInt(skeletonName.split("-")[1]) - 1;
+  const pieceId = parseInt(
+    pieceElement.getAttribute("puzzle-component").split("-")[1]
+  );
+
+  piecesUserMounted[arrayPosition] = piecesAnswer[pieceId];
+  positionedPieces[arrayPosition] =
+    pieceElement.getAttribute("puzzle-component");
+
+  console.log("Peças na posição correta:", positionedPieces);
+  pieceElement.setAttribute("position", {
+    x: position.x - pieceSize / 2,
+    y: position.y - pieceSize / 2,
+    z: position.z - pieceDepth / 2,
+  });
+}
+
 /* ========== COMPONENTES A-FRAME ========== */
-// Componente para logar a posição do puzzle
-// AFRAME.registerComponent("puzzle-skeleton", {
-//   init: function () {
-//     this.el.addEventListener("click", () => {
-//       const position = this.el.getAttribute("position");
-//       console.log("Posição do puzzle", position);
-//     });
-//   },
-// });
 
 /**
  * Componente A-Frame para criar uma peça de quebra-cabeça com lados personalizados
@@ -462,7 +555,43 @@ AFRAME.registerComponent("puzzle-component", {
   init: function () {
     const currentPosition = this.el.getAttribute("position");
 
+    let clickTimeoutId = null;
+
+    this.el.addEventListener("mouseenter", () => {
+      const timeoutDuration = positionedPieces.includes(this.data)
+        ? 5000
+        : 2000;
+      cursor.setAttribute("animation__fill", {
+        property: "geometry.radiusInner",
+        to: "0",
+        dur: timeoutDuration,
+        easing: "linear",
+      });
+
+      clickTimeoutId = setTimeout(() => {
+        this.el.emit("click");
+        clickTimeoutId = null;
+      }, timeoutDuration);
+    });
+
+    this.el.addEventListener("mouseleave", () => {
+      if (clickTimeoutId) {
+        clearTimeout(clickTimeoutId);
+        clickTimeoutId = null;
+      }
+
+      cursor.removeAttribute("animation__fill");
+      cursor.setAttribute("geometry", {
+        primitive: "ring",
+        radiusInner: 0.015,
+        radiusOuter: 0.02,
+      });
+    });
+
     this.el.addEventListener("click", () => {
+      console.log(this.data, positionedPieces);
+      console.log(positionedPieces.includes(this.data));
+
       const prefixName = this.data.split("-")[0];
 
       if (
@@ -470,7 +599,6 @@ AFRAME.registerComponent("puzzle-component", {
         prefixName === "piece" &&
         lineSelection.initalElementName !== this.data
       ) {
-        console.log("Não pode selecionar peça");
         return;
       }
 
@@ -486,12 +614,11 @@ AFRAME.registerComponent("puzzle-component", {
         lineSelection.active &&
         lineSelection.initalElementName !== this.data
       ) {
-        lineSelection.active = false;
-        lineSelection.selectedElement.setAttribute("position", {
-          x: currentPosition.x - pieceSize / 2,
-          y: currentPosition.y - pieceSize / 2,
-          z: currentPosition.z - pieceDepth / 2,
-        });
+        movePieceToPosition(
+          lineSelection.selectedElement,
+          currentPosition,
+          this.data
+        );
         lineSelection.reset();
         return;
       }
