@@ -32,6 +32,17 @@
  * @property {number} z - Posição no eixo Z
  */
 
+/**
+ * @typedef {Object} PuzzlePieceBase
+ * @property {string} id - Identificador único da peça
+ * @property {SideShapes} sides - Formatos dos lados da peça
+ */
+
+/**
+ * @typedef {PuzzlePieceBase & { position: Position3D, name: string }} PuzzlePiece
+ * Extensão de PuzzlePieceBase que inclui a posição 3D da peça
+ */
+
 /* ========== CLASSES ========== */
 /**
  * Classe para controle da linha de seleção
@@ -41,6 +52,17 @@
  * @property {string|null} initalElementName - Nome do elemento inicial selecionado
  * @property {HTMLElement|null} selectedElement - Elemento HTML atualmente selecionado
  * @method setStart(position, name, element) - Define o ponto inicial da linha
+ * @method setEnd(position) - Define o ponto final da linha
+ * @method reset() - Reseta a linha para o estado inicial
+ */
+/**
+ * Classe para controle da linha de seleção
+ * @class Line
+ * @property {boolean} active - Indica se a linha está ativa
+ * @property {HTMLElement} element - Elemento HTML da linha
+ * @property {string|null} initalElementName - Nome do elemento inicial selecionado
+ * @property {HTMLElement|null} selectedElement - Elemento HTML atualmente selecionado
+ * @method setStart(position) - Define o ponto inicial da linha
  * @method setEnd(position) - Define o ponto final da linha
  * @method reset() - Reseta a linha para o estado inicial
  */
@@ -97,67 +119,33 @@ const heightInitGlobal = 1;
 const widthInitGlobal = -1.5;
 
 /* ========== INICIALIZAÇÃO ========== */
+/**
+ * Array que armazena as peças com id e forma
+ * @type {Array<PuzzlePieceBase>}
+ */
 const pieces = generatePieces();
-const shuffledPieces = embaralharArray(pieces);
-const piecesWithPositions = setPiecesPositions(shuffledPieces);
-mountPuzzleSkeleton();
-piecesWithPositions.forEach((piece, index) => {
-  mountPuzzlePiece(`piece-${index}`, piece.sides, piece.position);
-});
 
-/* ========== AREA DE TESTES (executar funções no inicio para testar o codigo) ========== */
-const piecesAnswer = pieces.map((piece) => piece.id);
+/**
+ * Array que armazena as peças com id, forma, posição e nome
+ * @type {Array<{PuzzlePiece}>}
+ */
+const piecesForRender = definePiecePositions();
+
+/**
+ * Array que armazena as peças que já foram posicionados pelo usuário
+ * @type {Array<PuzzlePieceBase>}
+ */
 const piecesUserMounted = new Array(puzzleSize * puzzleSize).fill(null);
-const positionedPieces = new Array(puzzleSize * puzzleSize).fill(null);
+
+mountPuzzleSkeleton();
+renderPieces();
+/* ========== AREA DE TESTES (executar funções no inicio para testar o codigo) ========== */
 
 /* ========== FUNÇÕES DO SISTEMA ========== */
 
 /* === EM DESENVOLVIMENTO === */
 
 /* === FUNCOES DE INICIAIS (metodos que devem ser chamados na inicialização) === */
-
-/** Define as posições das peças embaralhadas
- * essa função recebe o array de peças embaralhadas
- * e define a posição de cada peça para que elas fiquem
- * distribuídas em uma grade ao lado do esqueleto
- * @param {Array} pieces - Array de peças embaralhadas
- */
-function setPiecesPositions(pieces) {
-  const heightInit = heightInitGlobal;
-  const widthInit = widthInitGlobal;
-  const gap = pieceSize;
-  const piecesWithPositions = pieces;
-
-  for (let row = 0; row < puzzleSize; row++) {
-    for (let col = 0; col < puzzleSize; col++) {
-      const position = {
-        x: widthInit + col * gap,
-        y: heightInit + row * 1.5 * gap,
-        z: zOffset,
-      };
-
-      if (col === 0) {
-        position.x = widthInit - 1.5 + col * gap;
-      }
-
-      if (col === 1) {
-        position.x = widthInit + 5 + col * gap;
-      }
-
-      if (col === 2) {
-        position.x = widthInit - 5 + col * gap;
-      }
-
-      if (col === 3) {
-        position.x = widthInit + 1.5 + col * gap;
-      }
-
-      piecesWithPositions[row * puzzleSize + col].position = position;
-    }
-  }
-
-  return piecesWithPositions;
-}
 
 /** Gera as peças do quebra-cabeça com lados que se encaixam
  * essa função cria as peças do quebra-cabeça e define os lados
@@ -167,9 +155,6 @@ function setPiecesPositions(pieces) {
 function generatePieces() {
   let count = 0;
 
-  const heightInit = heightInitGlobal;
-  const widthInit = widthInitGlobal;
-  const gap = pieceSize;
   const pieces = [];
 
   for (let row = 0; row < puzzleSize; row++) {
@@ -208,6 +193,62 @@ function generatePieces() {
   }
 
   return pieces;
+}
+
+/**
+ * Embaralha as peças e define suas posições iniciais adicionando o nome
+ */
+function definePiecePositions() {
+  const heightInit = heightInitGlobal;
+  const widthInit = widthInitGlobal;
+  const gap = pieceSize;
+  const shuffledPieces = embaralharArray(pieces);
+  const piecesForRender = [];
+
+  for (let row = 0; row < puzzleSize; row++) {
+    for (let col = 0; col < puzzleSize; col++) {
+      const index = row * puzzleSize + col;
+      const position = {
+        x: widthInit + col * gap,
+        y: heightInit + row * 1.5 * gap,
+        z: zOffset,
+      };
+
+      if (col === 0) {
+        position.x = widthInit - 1.5 + col * gap;
+      }
+
+      if (col === 1) {
+        position.x = widthInit + 5 + col * gap;
+      }
+
+      if (col === 2) {
+        position.x = widthInit - 5 + col * gap;
+      }
+
+      if (col === 3) {
+        position.x = widthInit + 1.5 + col * gap;
+      }
+
+      piecesForRender.push({
+        ...shuffledPieces[index],
+        name: `piece-${index + 1}`,
+        position,
+      });
+    }
+  }
+
+  return piecesForRender;
+}
+
+/**
+ * Renderiza as peças do quebra-cabeça na cena
+ * embaralhadas e com nome na cena
+ */
+function renderPieces() {
+  piecesForRender.forEach((piece, index) => {
+    mountPuzzlePiece(`piece-${index + 1}`, piece.sides, piece.position);
+  });
 }
 
 /** Monta o esqueleto do quebra-cabeça na cena
@@ -447,62 +488,108 @@ function embaralharArray(array) {
   return copia;
 }
 
-/**
- * Configura o timeout de clique para um elemento
- * essa função adiciona eventos de mouseenter e mouseleave
- * para controlar o tempo necessário para emitir um clique
- * @param {HTMLElement} element - Elemento HTML para configurar o timeout de clique
- * @param {number} timeout - Tempo em milissegundos para emitir o clique (padrão: 2000ms)
- */
-function setClickTimeout(element, name) {
-  const timeoutDuration = positionedPieces.includes(name) ? 5000 : 2000;
-  let clickTimeoutId = null;
-
-  element.addEventListener("mouseenter", () => {
-    cursor.setAttribute("animation__fill", {
-      property: "geometry.radiusInner",
-      to: "0",
-      dur: timeoutDuration,
-      easing: "linear",
-    });
-
-    clickTimeoutId = setTimeout(() => {
-      element.emit("click");
-      clickTimeoutId = null;
-    }, timeoutDuration);
-  });
-
-  element.addEventListener("mouseleave", () => {
-    if (clickTimeoutId) {
-      clearTimeout(clickTimeoutId);
-      clickTimeoutId = null;
-    }
-
-    cursor.removeAttribute("animation__fill");
-    cursor.setAttribute("geometry", {
-      primitive: "ring",
-      radiusInner: 0.015,
-      radiusOuter: 0.02,
-    });
-  });
+function validatePiecesFit(sideA, sideB) {
+  return (
+    (sideA === 1 && sideB === 2) ||
+    (sideA === 2 && sideB === 1) ||
+    (sideA === 0 && sideB === 0) ||
+    (sideA === 1 && sideB === 1)
+  );
 }
 
-function movePieceToPosition(pieceElement, position, skeletonName) {
+function movePieceToPosition(pieceElement, skeletonPosition, skeletonName) {
+  // console.log({
+  //   pieceElement,
+  //   skeletonPosition,
+  //   name: pieceElement.getAttribute("puzzle-component"),
+  // });
+
+  const mountedArrayIndex = skeletonName.split("-")[1] - 1;
+  const pieceName = pieceElement.getAttribute("puzzle-component");
+  const pieceSelectedId = piecesForRender.find((p) => p.name === pieceName).id;
+  const piece = pieces.find((p) => p.id === pieceSelectedId);
+
+  // validate
+
+  const topPiece = piecesUserMounted[mountedArrayIndex + puzzleSize];
+  const bottomPiece = piecesUserMounted[mountedArrayIndex - puzzleSize];
+  const leftPiece = piecesUserMounted[mountedArrayIndex - 1];
+  const rightPiece = piecesUserMounted[mountedArrayIndex + 1];
+
+  console.log({
+    piece,
+    topPiece,
+    isValid: validatePiecesFit(piece.sides.top, topPiece?.sides.bottom),
+  });
+
+  if (topPiece && !validatePiecesFit(piece.sides.top, topPiece.sides.bottom)) {
+    console.log("peça não encaixa em cima");
+  }
+
+  //validate
+
+  piecesUserMounted[mountedArrayIndex] = piece;
+
+  pieceElement.setAttribute("position", {
+    x: skeletonPosition.x - pieceSize / 2,
+    y: skeletonPosition.y - pieceSize / 2,
+    z: skeletonPosition.z - pieceDepth / 2,
+  });
+
+  // console.log(piecesUserMounted);
+
+  /*
+  console.log("peças com posição:", piecesWithPositions);
+  // console.log("gabarito", piecesAnswer);
+  console.log("peças montadas:", piecesUserMounted);
+
   const arrayPosition = parseInt(skeletonName.split("-")[1]) - 1;
   const pieceId = parseInt(
     pieceElement.getAttribute("puzzle-component").split("-")[1]
   );
 
-  piecesUserMounted[arrayPosition] = piecesAnswer[pieceId];
-  positionedPieces[arrayPosition] =
-    pieceElement.getAttribute("puzzle-component");
+  // validate
+  console.log("posição no array", arrayPosition);
+  // console.log("peça de cima", piecesUserMounted[arrayPosition + puzzleSize]);
+  // console.log("peça de baixo", piecesUserMounted[arrayPosition - puzzleSize]);
+  // console.log("peça da esquerda", piecesUserMounted[arrayPosition - 1]);
+  // console.log("peça da direita", piecesUserMounted[arrayPosition + 1]);
 
-  console.log("Peças na posição correta:", positionedPieces);
+  const topPieceIndex = arrayPosition + puzzleSize;
+  const bottomPieceIndex = arrayPosition - puzzleSize;
+  const leftPieceIndex = arrayPosition - 1;
+  const rightPieceIndex = arrayPosition + 1;
+
+  if (topPieceIndex < piecesUserMounted.length) {
+    const topPieceId = piecesUserMounted[topPieceIndex].id;
+    console.log("id peça de cima", topPieceId);
+    const topPiece = piecesWithPositions.find(
+      (piece) => piece.id === topPieceId
+    );
+
+    console.log("peça de cima", topPiece);
+  }
+
+  // const topPiece = piecesUserMounted[arrayPosition + puzzleSize];
+  // const bottomPiece = piecesUserMounted[arrayPosition - puzzleSize];
+  // const leftPiece = piecesUserMounted[arrayPosition - 1];
+  // const rightPiece = piecesUserMounted[arrayPosition + 1];
+
+  // const topPiece =
+
+  /// validate
+
+  piecesUserMounted[arrayPosition] = {
+    id: pieceId,
+    name: pieceElement.getAttribute("puzzle-component"),
+  };
+
   pieceElement.setAttribute("position", {
     x: position.x - pieceSize / 2,
     y: position.y - pieceSize / 2,
     z: position.z - pieceDepth / 2,
   });
+  */
 }
 
 /* ========== COMPONENTES A-FRAME ========== */
@@ -553,88 +640,152 @@ AFRAME.registerComponent("puzzle-component", {
   schema: { type: "string", default: "none" },
 
   init: function () {
-    const currentPosition = this.el.getAttribute("position");
-
     let clickTimeoutId = null;
 
     this.el.addEventListener("mouseenter", () => {
-      const timeoutDuration = positionedPieces.includes(this.data)
-        ? 5000
-        : 2000;
-      cursor.setAttribute("animation__fill", {
-        property: "geometry.radiusInner",
-        to: "0",
-        dur: timeoutDuration,
-        easing: "linear",
-      });
-
-      clickTimeoutId = setTimeout(() => {
-        this.el.emit("click");
-        clickTimeoutId = null;
-      }, timeoutDuration);
+      this.handleMouseEnter(this.el, this.data);
     });
 
     this.el.addEventListener("mouseleave", () => {
-      if (clickTimeoutId) {
-        clearTimeout(clickTimeoutId);
-        clickTimeoutId = null;
-      }
-
-      cursor.removeAttribute("animation__fill");
-      cursor.setAttribute("geometry", {
-        primitive: "ring",
-        radiusInner: 0.015,
-        radiusOuter: 0.02,
-      });
+      this.handleMouseLeave();
     });
 
     this.el.addEventListener("click", () => {
-      console.log(this.data, positionedPieces);
-      console.log(positionedPieces.includes(this.data));
-
-      const prefixName = this.data.split("-")[0];
-
-      if (
-        lineSelection.active &&
-        prefixName === "piece" &&
-        lineSelection.initalElementName !== this.data
-      ) {
-        return;
-      }
-
-      if (
-        lineSelection.active &&
-        lineSelection.initalElementName === this.data
-      ) {
-        lineSelection.reset();
-        return;
-      }
-
-      if (
-        lineSelection.active &&
-        lineSelection.initalElementName !== this.data
-      ) {
-        movePieceToPosition(
-          lineSelection.selectedElement,
-          currentPosition,
-          this.data
-        );
-        lineSelection.reset();
-        return;
-      }
-
-      if (!lineSelection.active && prefixName === "piece") {
-        lineSelection.setStart(
-          {
-            x: currentPosition.x + pieceSize / 2,
-            y: currentPosition.y + pieceSize / 2,
-            z: currentPosition.z + pieceDepth / 2,
-          },
-          this.data,
-          this.el
-        );
-      }
+      this.handleMouseClick();
     });
+
+    // this.el.addEventListener("click", () => {
+    //   const prefixName = this.data.split("-")[0];
+
+    //   if (
+    //     lineSelection.active &&
+    //     prefixName === "piece" &&
+    //     lineSelection.initalElementName !== this.data
+    //   ) {
+    //     return;
+    //   }
+
+    //   if (
+    //     lineSelection.active &&
+    //     lineSelection.initalElementName === this.data
+    //   ) {
+    //     lineSelection.reset();
+    //     return;
+    //   }
+
+    //   if (
+    //     lineSelection.active &&
+    //     lineSelection.initalElementName !== this.data
+    //   ) {
+    //     movePieceToPosition(
+    //       lineSelection.selectedElement,
+    //       currentPosition,
+    //       this.data
+    //     );
+    //     lineSelection.reset();
+    //     return;
+    //   }
+
+    //   if (!lineSelection.active && prefixName === "piece") {
+    //     lineSelection.setStart(
+    //       {
+    //         x: currentPosition.x + pieceSize / 2,
+    //         y: currentPosition.y + pieceSize / 2,
+    //         z: currentPosition.z + pieceDepth / 2,
+    //       },
+    //       this.data,
+    //       this.el
+    //     );
+    //   }
+    // });
+  },
+  /**
+   * Manipula o evento de mouseenter na peça, iniciando um timeout de clique
+   * e atualizando a aparência do cursor.
+   * @param {HTMLElement} element
+   * @param {string} name
+   */
+  handleMouseEnter: function () {
+    const timeoutDuration = piecesUserMounted.find(
+      (piece) => piece?.name === this.data
+    )
+      ? 1000
+      : 500;
+
+    cursor.setAttribute("animation__fill", {
+      property: "geometry.radiusInner",
+      to: "0",
+      dur: timeoutDuration,
+      easing: "linear",
+    });
+
+    if (this.clickTimeoutId) {
+      clearTimeout(this.clickTimeoutId);
+    }
+
+    this.clickTimeoutId = setTimeout(() => {
+      this.el.emit("click");
+      this.clickTimeoutId = null;
+    }, timeoutDuration);
+  },
+  /**
+   * Manipula o evento de mouseleave na peça, cancelando o timeout de clique
+   * e resetando a aparência do cursor.
+   */
+  handleMouseLeave: function () {
+    if (this.clickTimeoutId) {
+      clearTimeout(this.clickTimeoutId);
+      this.clickTimeoutId = null;
+    }
+
+    cursor.removeAttribute("animation__fill");
+    cursor.setAttribute("geometry", {
+      primitive: "ring",
+      radiusInner: 0.015,
+      radiusOuter: 0.02,
+    });
+  },
+  /**
+   * Lógica que ocorre quando a peça é clicada
+   */
+  handleMouseClick: function () {
+    const currentPosition = this.el.getAttribute("position");
+    const prefixName = this.data.split("-")[0];
+
+    if (
+      lineSelection.active &&
+      prefixName === "piece" &&
+      lineSelection.initalElementName !== this.data
+    ) {
+      return;
+    }
+
+    if (lineSelection.active && lineSelection.initalElementName === this.data) {
+      lineSelection.reset();
+      return;
+    }
+
+    if (lineSelection.active && lineSelection.initalElementName !== this.data) {
+      movePieceToPosition(
+        lineSelection.selectedElement,
+        currentPosition,
+        this.data
+      );
+      lineSelection.reset();
+      return;
+    }
+
+    if (!lineSelection.active && prefixName === "piece") {
+      lineSelection.setStart(
+        {
+          x: currentPosition.x + pieceSize / 2,
+          y: currentPosition.y + pieceSize / 2,
+          z: currentPosition.z + pieceDepth / 2,
+        },
+        this.data,
+        this.el
+      );
+    }
   },
 });
 
