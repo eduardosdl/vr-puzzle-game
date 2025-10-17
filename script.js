@@ -1,5 +1,32 @@
 /**
- * analisar a implementação de validação ao movimentar peças
+ * Esse é um projeto de quebra-cabeça 3D em realidade aumentada
+ * utilizando A-Frame e Three.js
+ * O objetivo é criar um quebra-cabeça interativo onde
+ * o usuário pode montar as peças em um ambiente de RA
+ * as peças são geradas com lados que se encaixam
+ * e o usuário pode selecionar e mover as peças para montar o quebra-cabeça
+ * o projeto inclui:
+ * - Geração de peças com lados que se encaixam
+ * - Embaralhamento das peças
+ * - Renderização das peças na cena
+ * - Interação do usuário para selecionar e mover peças
+ * - Validação do encaixe das peças
+ * - Feedback visual para erros de encaixe
+ * - Indicação de conclusão do quebra-cabeça
+ *
+ * Alguns termos utilizados para documentar:
+ * - Peça: cada parte individual do quebra-cabeça
+ * - Lado: cada uma das quatro bordas de uma peça
+ * - Encaixe: a ação de colocar uma peça na posição correta
+ * - Esqueleto(skeleton): guia visual para posicionamento das peças
+ * - Lixeira: área onde peças podem ser descartadas
+ *
+ * Conceitos complexos usados:
+ * - Geometria 3D com THREE.ExtrudeGeometry, geração das peças com lados personalizados
+ * - Interação com A-Frame, manipulação de eventos de mouse e clique
+ * - Geração de esqueleto (skeleton) para posicionamento das peças
+ * - Validação de encaixe das peças com base nos lados
+ * - Raycasting para detecção de interseções
  */
 
 /* ========== INFOS ========== */
@@ -13,8 +40,8 @@
  * @typedef {0 | 1 | 2} SideType
  * Formato de lado da peça do quebra-cabeça:
  * - 0 = reto
- * - 1 = para fora (saliente)
- * - 2 = para dentro (reentrante)
+ * - 1 = para dentro (reentrante)
+ * - 2 = para fora (saliente)
  */
 
 /**
@@ -97,24 +124,10 @@ class Line {
 /* ========== CONSTANTES GLOBAIS ========== */
 const lineSelection = new Line();
 const cursor = document.querySelector("#cursor");
-
-// cursor.addEventListener("mouseenter", () => {
-//   cursor.setAttribute("animation__fill", {
-//     property: "geometry.radiusInner",
-//     to: "0",
-//     dur: 2000,
-//     easing: "linear",
-//   });
-// });
-
-// cursor.addEventListener("mouseleave", () => {
-//   cursor.setAttribute("geometry.radiusInner", "0.015");
-// });
-
 const pieceSize = 1;
 const pieceDepth = 1;
 const puzzleSize = 4;
-const zOffset = -4;
+const zOffset = -6;
 const heightInitGlobal = 1;
 const widthInitGlobal = -1.5;
 
@@ -140,8 +153,6 @@ const piecesUserMounted = new Array(puzzleSize * puzzleSize).fill(null);
 mountPuzzleSkeleton();
 renderPieces();
 /* ========== AREA DE TESTES (executar funções no inicio para testar o codigo) ========== */
-
-/* ========== FUNÇÕES DO SISTEMA ========== */
 
 /* === EM DESENVOLVIMENTO === */
 
@@ -259,6 +270,7 @@ function mountPuzzleSkeleton() {
   const heightInit = heightInitGlobal;
   const widthInit = widthInitGlobal;
   const gap = pieceSize;
+  const finalHeight = heightInit + puzzleSize * gap;
 
   let count = 0;
 
@@ -272,6 +284,18 @@ function mountPuzzleSkeleton() {
       };
       skeletonSphere(`skeleton-${count}`, position);
     }
+  }
+
+  mountTrashBox(finalHeight);
+
+  for (let col = 0; col < puzzleSize - 1; col++) {
+    count++;
+    const position = {
+      x: widthInit + col * (gap + 0.5),
+      y: finalHeight + 0.5,
+      z: zOffset,
+    };
+    skeletonSphere(`trash-${count}`, position);
   }
 }
 
@@ -294,21 +318,10 @@ function skeletonSphere(name, position = { x: 1, y: 1, z: -3 }) {
   puzzleGroup.setAttribute("color", "#EF2D5E");
   puzzleGroup.setAttribute("class", "clickable");
 
-  if (name === "skeleton-1") {
-    puzzleGroup.setAttribute("color", "#00FF00");
+  if (name.startsWith("trash")) {
+    puzzleGroup.setAttribute("color", "#c7c7c7");
   }
-  if (name === "skeleton-2") {
-    puzzleGroup.setAttribute("color", "#0000ff");
-  }
-  if (name === "skeleton-3") {
-    puzzleGroup.setAttribute("color", "#FFFF00");
-  }
-  if (name === "skeleton-4") {
-    puzzleGroup.setAttribute("color", "#FFA500");
-  }
-  if (name === "skeleton-5") {
-    puzzleGroup.setAttribute("color", "#800080");
-  }
+
   puzzleGroup.setAttribute(
     "position",
     `${position.x} ${position.y} ${position.z}`
@@ -340,6 +353,27 @@ function mountPuzzlePiece(
   puzzleGroup.setAttribute("shadow", "cast:true;receive:true");
   puzzleGroup.setAttribute("class", "clickable");
   sceneEl.appendChild(puzzleGroup);
+}
+
+/**
+ * Monta um background para os skeletons que serve como lixeira
+ * @param {number} finalHeight - Altura final
+ */
+function mountTrashBox(finalHeight) {
+  const ascene = document.querySelector("a-scene");
+  const trashContainer = document.createElement("a-box");
+  trashContainer.setAttribute("id", "trash-container");
+  trashContainer.setAttribute("position", {
+    x: 0,
+    y: finalHeight + pieceSize / 2,
+    z: zOffset - pieceDepth / 2,
+  });
+  trashContainer.setAttribute("width", pieceSize * puzzleSize + 0.5);
+  trashContainer.setAttribute("height", pieceSize + 0.5);
+  trashContainer.setAttribute("color", "red");
+  trashContainer.setAttribute("opacity", "0.5");
+  trashContainer.setAttribute("depth", "0.5");
+  ascene.appendChild(trashContainer);
 }
 
 /**
@@ -449,7 +483,6 @@ function createShape(borderShapes) {
     color: 0x156289,
     flatShading: true,
     transparent: true,
-    opacity: 0.5,
   });
 
   const mesh = new THREE.Mesh(geometry, material);
@@ -488,47 +521,71 @@ function embaralharArray(array) {
   return copia;
 }
 
+/**
+ * Mostra uma mensagem de erro na tela por 2 segundos
+ */
+function showErrorMessage() {
+  const error = document.querySelector("#error");
+  error.setAttribute("visible", "true");
+
+  setTimeout(() => {
+    error.setAttribute("visible", "false");
+  }, 2000);
+}
+
+/**
+ * Valida se duas peças de quebra-cabeça se encaixam
+ * @param {SideType} sideA - Lado da peça A
+ * @param {SideType} sideB - Lado da peça B
+ * @returns {boolean} - Retorna verdadeiro se as peças se encaixam, falso caso contrário
+ */
 function validatePiecesFit(sideA, sideB) {
   return (
     (sideA === 1 && sideB === 2) ||
     (sideA === 2 && sideB === 1) ||
     (sideA === 0 && sideB === 0) ||
-    (sideA === 1 && sideB === 1)
+    (sideA === 1 && sideB === 1) ||
+    (sideA === 0 && sideB === 1) ||
+    (sideA === 1 && sideB === 0)
   );
 }
 
+/**
+ * Move uma peça para uma posição específica no espaço 3D
+ * @param {AFRAME.Element} pieceElement - O elemento A-Frame que representa a peça do quebra-cabeça.
+ * @param {THREE.Vector3} skeletonPosition - A posição alvo no espaço 3D.
+ * @param {string} skeletonName - O nome do esqueleto para o qual a peça está sendo movida.
+ * @returns {void}
+ */
 function movePieceToPosition(pieceElement, skeletonPosition, skeletonName) {
-  // console.log({
-  //   pieceElement,
-  //   skeletonPosition,
-  //   name: pieceElement.getAttribute("puzzle-component"),
-  // });
-
-  const mountedArrayIndex = skeletonName.split("-")[1] - 1;
+  const skeleton = skeletonName.split("-");
+  const skeletonType = skeleton[0];
+  const mountedArrayIndex = skeleton[1] - 1;
   const pieceName = pieceElement.getAttribute("puzzle-component");
   const pieceSelectedId = piecesForRender.find((p) => p.name === pieceName).id;
   const piece = pieces.find((p) => p.id === pieceSelectedId);
 
-  // validate
+  if (skeletonType === "skeleton") {
+    const topPiece = piecesUserMounted[mountedArrayIndex + puzzleSize];
+    const bottomPiece = piecesUserMounted[mountedArrayIndex - puzzleSize];
+    const leftPiece = piecesUserMounted[mountedArrayIndex - 1];
+    const rightPiece = piecesUserMounted[mountedArrayIndex + 1];
 
-  const topPiece = piecesUserMounted[mountedArrayIndex + puzzleSize];
-  const bottomPiece = piecesUserMounted[mountedArrayIndex - puzzleSize];
-  const leftPiece = piecesUserMounted[mountedArrayIndex - 1];
-  const rightPiece = piecesUserMounted[mountedArrayIndex + 1];
+    if (
+      (topPiece &&
+        !validatePiecesFit(piece.sides.top, topPiece.sides.bottom)) ||
+      (rightPiece &&
+        !validatePiecesFit(piece.sides.right, rightPiece.sides.left)) ||
+      (bottomPiece &&
+        !validatePiecesFit(piece.sides.bottom, bottomPiece.sides.top)) ||
+      (leftPiece && !validatePiecesFit(piece.sides.left, leftPiece.sides.right))
+    ) {
+      showErrorMessage();
+      return;
+    }
 
-  console.log({
-    piece,
-    topPiece,
-    isValid: validatePiecesFit(piece.sides.top, topPiece?.sides.bottom),
-  });
-
-  if (topPiece && !validatePiecesFit(piece.sides.top, topPiece.sides.bottom)) {
-    console.log("peça não encaixa em cima");
+    piecesUserMounted[mountedArrayIndex] = piece;
   }
-
-  //validate
-
-  piecesUserMounted[mountedArrayIndex] = piece;
 
   pieceElement.setAttribute("position", {
     x: skeletonPosition.x - pieceSize / 2,
@@ -536,60 +593,24 @@ function movePieceToPosition(pieceElement, skeletonPosition, skeletonName) {
     z: skeletonPosition.z - pieceDepth / 2,
   });
 
-  // console.log(piecesUserMounted);
+  const fill = piecesUserMounted.includes(null);
 
-  /*
-  console.log("peças com posição:", piecesWithPositions);
-  // console.log("gabarito", piecesAnswer);
-  console.log("peças montadas:", piecesUserMounted);
+  if (!fill) {
+    console.log("puzzle completo!");
 
-  const arrayPosition = parseInt(skeletonName.split("-")[1]) - 1;
-  const pieceId = parseInt(
-    pieceElement.getAttribute("puzzle-component").split("-")[1]
-  );
+    console.log("piecesUserMounted", piecesUserMounted);
+    console.log("piecesForRender", pieces);
 
-  // validate
-  console.log("posição no array", arrayPosition);
-  // console.log("peça de cima", piecesUserMounted[arrayPosition + puzzleSize]);
-  // console.log("peça de baixo", piecesUserMounted[arrayPosition - puzzleSize]);
-  // console.log("peça da esquerda", piecesUserMounted[arrayPosition - 1]);
-  // console.log("peça da direita", piecesUserMounted[arrayPosition + 1]);
+    const isValid = piecesUserMounted.every((p, index) => {
+      return p.id === pieces[index].id;
+    });
 
-  const topPieceIndex = arrayPosition + puzzleSize;
-  const bottomPieceIndex = arrayPosition - puzzleSize;
-  const leftPieceIndex = arrayPosition - 1;
-  const rightPieceIndex = arrayPosition + 1;
-
-  if (topPieceIndex < piecesUserMounted.length) {
-    const topPieceId = piecesUserMounted[topPieceIndex].id;
-    console.log("id peça de cima", topPieceId);
-    const topPiece = piecesWithPositions.find(
-      (piece) => piece.id === topPieceId
-    );
-
-    console.log("peça de cima", topPiece);
+    if (isValid) {
+      console.log("parabéns, você completou o quebra-cabeça!");
+    } else {
+      console.log("quebra-cabeça incorreto, tente novamente!");
+    }
   }
-
-  // const topPiece = piecesUserMounted[arrayPosition + puzzleSize];
-  // const bottomPiece = piecesUserMounted[arrayPosition - puzzleSize];
-  // const leftPiece = piecesUserMounted[arrayPosition - 1];
-  // const rightPiece = piecesUserMounted[arrayPosition + 1];
-
-  // const topPiece =
-
-  /// validate
-
-  piecesUserMounted[arrayPosition] = {
-    id: pieceId,
-    name: pieceElement.getAttribute("puzzle-component"),
-  };
-
-  pieceElement.setAttribute("position", {
-    x: position.x - pieceSize / 2,
-    y: position.y - pieceSize / 2,
-    z: position.z - pieceDepth / 2,
-  });
-  */
 }
 
 /* ========== COMPONENTES A-FRAME ========== */
