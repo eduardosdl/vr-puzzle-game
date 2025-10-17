@@ -306,7 +306,7 @@ function mountPuzzleSkeleton() {
  * ele vai ser o ponto central de cada peça e vai definir a posição
  * correta de cada uma
  * @param {string} name - Nome da esfera
- * @param {object} position - Posição inicial da esfera
+ * @param {Position3D} position - Posição inicial da esfera
  */
 function skeletonSphere(name, position = { x: 1, y: 1, z: -3 }) {
   const sceneEl = document.querySelector("a-scene");
