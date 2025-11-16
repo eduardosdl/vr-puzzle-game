@@ -126,29 +126,63 @@ const lineSelection = new Line();
 const cursor = document.querySelector("#cursor");
 const pieceSize = 1;
 const pieceDepth = 1;
-const puzzleSize = 4;
+// Configuração do puzzle: 3 linhas x 4 colunas = 12 peças
+const rows = 3;
+const cols = 4;
+const totalPieces = rows * cols;
+const puzzleSize = 4; // mantido para compatibilidade
 const zOffset = -6;
 const heightInitGlobal = 1;
 const widthInitGlobal = -1.5;
+
+//Configuração de imagens do puzzle
+let currentPuzzle = 'puzzle1';
+let currentLevel = 1;
+let currentTexture = null;
+
+// Controle de rotação
+let isRotateKeyPressed = false;
+
+// Detectar tecla R para rotação
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'r' || e.key === 'R') {
+    isRotateKeyPressed = true;
+  }
+});
+
+document.addEventListener('keyup', (e) => {
+  if (e.key === 'r' || e.key === 'R') {
+    isRotateKeyPressed = false;
+  }
+});
 
 /* ========== INICIALIZAÇÃO ========== */
 /**
  * Array que armazena as peças com id e forma
  * @type {Array<PuzzlePieceBase>}
  */
-const pieces = generatePieces();
+let pieces = generatePieces();
+
+/**
+ * Array que armazena os slots (posições corretas) do tabuleiro
+ * @type {Array<Object>}
+ */
+let slots = createSlots();
 
 /**
  * Array que armazena as peças com id, forma, posição e nome
  * @type {Array<{PuzzlePiece}>}
  */
-const piecesForRender = definePiecePositions();
+let piecesForRender = definePiecePositions();
 
 /**
  * Array que armazena as peças que já foram posicionados pelo usuário
  * @type {Array<PuzzlePieceBase>}
  */
-const piecesUserMounted = new Array(puzzleSize * puzzleSize).fill(null);
+let piecesUserMounted = new Array(totalPieces).fill(null);
+
+// Carregar textura padrão na inicialização
+loadPuzzleTexture('images/puzzle1.jpg');
 
 mountPuzzleSkeleton();
 renderPieces();
@@ -158,9 +192,88 @@ renderPieces();
 
 /* === FUNCOES DE INICIAIS (metodos que devem ser chamados na inicialização) === */
 
+/**
+ * Carrega a textura do puzzle
+ * @param {string} imageUrl - URL da imagem a ser carregada
+ */
+function loadPuzzleTexture(imageUrl) {
+  const loader = new THREE.TextureLoader();
+  loader.load(
+    imageUrl,
+    (texture) => {
+      currentTexture = texture;
+      // Configuração correta da textura
+      currentTexture.wrapS = currentTexture.wrapT = THREE.ClampToEdgeWrapping;
+      currentTexture.minFilter = THREE.LinearFilter;
+      currentTexture.magFilter = THREE.LinearFilter;
+      currentTexture.flipY = false;
+      console.log(`Textura carregada: ${imageUrl}`);
+      
+      // Atualizar material de todas as peças existentes
+      updatePiecesTexture();
+    },
+    undefined,
+    (error) => {
+      console.warn(`Erro ao carregar textura ${imageUrl}:`, error);
+      console.log('Usando cor padrão para as peças');
+    }
+  );
+}
+
+/**
+ * Atualiza a textura de todas as peças na cena
+ */
+function updatePiecesTexture() {
+  if (!currentTexture) return;
+  
+  piecesForRender.forEach((piece) => {
+    const element = document.querySelector(`#${piece.name}`);
+    if (element) {
+      // Buscar o mesh no object3D
+      const mesh = element.getObject3D('mesh');
+      if (mesh && mesh.material) {
+        mesh.material.map = currentTexture;
+        mesh.material.color.set(0xffffff); // Branco para não tingir a textura
+        mesh.material.needsUpdate = true;
+      }
+    }
+  });
+}
+
+/**
+ * Reseta o puzzle atual - reembaralha SEM gerar novas peças
+ * IMPORTANTE: Mantém texturas fixas, apenas reposiciona
+ */
+function resetPuzzle() {
+  // Remover todas as peças existentes
+  piecesForRender.forEach((piece) => {
+    const element = document.querySelector(`#${piece.name}`);
+    if (element) {
+      element.parentNode.removeChild(element);
+    }
+  });
+  
+  // Limpar array de peças montadas
+  piecesUserMounted.fill(null);
+  
+  // Remover skeleton
+  const skeletonPieces = document.querySelectorAll('[id^="skeleton-"]');
+  skeletonPieces.forEach(el => el.parentNode.removeChild(el));
+  
+  // Recriar slots
+  slots = createSlots();
+  
+  // IMPORTANTE: Reembaralhar APENAS posições, manter textura original de cada peça
+  piecesForRender = definePiecePositions();
+  
+  mountPuzzleSkeleton();
+  renderPieces();
+}
+
 /** Gera as peças do quebra-cabeça com lados que se encaixam
  * essa função cria as peças do quebra-cabeça e define os lados
  * de cada peça para que elas possam se encaixar corretamente
+ * IMPORTANTE: Cada peça mantém seu índice correto (correctIndex)
  * @returns {Array} - Array de peças com lados definidos
  */
 function generatePieces() {
@@ -168,29 +281,33 @@ function generatePieces() {
 
   const pieces = [];
 
-  for (let row = 0; row < puzzleSize; row++) {
-    for (let col = 0; col < puzzleSize; col++) {
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const index = row * cols + col;
       count++;
 
-      const topSide = row === puzzleSize - 1 ? 0 : randomSideShape();
-      const rightSide = col === puzzleSize - 1 ? 0 : randomSideShape();
+      const topSide = row === rows - 1 ? 0 : randomSideShape();
+      const rightSide = col === cols - 1 ? 0 : randomSideShape();
       // o calculo dentro dos arrays "[]" serve para pegar o lado oposto da peça vizinha
       // precisa de tudo isso pois calcula a posição corrita no array
       const bottomSide =
         row === 0
           ? 0
-          : pieces[(row - 1) * puzzleSize + col].sides.top === 1
+          : pieces[(row - 1) * cols + col].sides.top === 1
           ? 2
           : 1;
       const leftSide =
         col === 0
           ? 0
-          : pieces[row * puzzleSize + (col - 1)].sides.right === 1
+          : pieces[row * cols + (col - 1)].sides.right === 1
           ? 2
           : 1;
 
       const piece = {
         id: crypto.randomUUID(),
+        correctIndex: index, // Índice correto na solução final
+        correctRow: row,     // Linha correta
+        correctCol: col,     // Coluna correta
         sides: {
           top: topSide,
           right: rightSide,
@@ -207,46 +324,79 @@ function generatePieces() {
 }
 
 /**
+ * Cria os slots invisíveis do tabuleiro (posições corretas)
+ * @returns {Array} - Array de objetos representando slots
+ */
+function createSlots() {
+  const slots = [];
+  const heightInit = heightInitGlobal;
+  const widthInit = widthInitGlobal;
+  const gap = pieceSize;
+
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const index = row * cols + col;
+      const slot = {
+        index: index,
+        position: {
+          x: widthInit + col * gap,
+          y: heightInit + row * gap,
+          z: zOffset,
+        },
+      };
+      slots.push(slot);
+    }
+  }
+
+  return slots;
+}
+
+/**
  * Embaralha as peças e define suas posições iniciais adicionando o nome
+ * IMPORTANTE: Embaralha apenas POSIÇÕES (distribuição espacial), nunca texturas
+ * Cada peça mantém sua imagem original através de correctRow/correctCol
  */
 function definePiecePositions() {
   const heightInit = heightInitGlobal;
   const widthInit = widthInitGlobal;
-  const gap = pieceSize;
-  const shuffledPieces = embaralharArray(pieces);
+  const gap = pieceSize * 1.2;
   const piecesForRender = [];
 
-  for (let row = 0; row < puzzleSize; row++) {
-    for (let col = 0; col < puzzleSize; col++) {
-      const index = row * puzzleSize + col;
-      const position = {
-        x: widthInit + col * gap,
-        y: heightInit + row * 1.5 * gap,
-        z: zOffset,
-      };
-
-      if (col === 0) {
-        position.x = widthInit - 1.5 + col * gap;
-      }
-
-      if (col === 1) {
-        position.x = widthInit + 5 + col * gap;
-      }
-
-      if (col === 2) {
-        position.x = widthInit - 5 + col * gap;
-      }
-
-      if (col === 3) {
-        position.x = widthInit + 1.5 + col * gap;
-      }
-
-      piecesForRender.push({
-        ...shuffledPieces[index],
-        name: `piece-${index + 1}`,
-        position,
+  // Criar array de posições disponíveis: 2 colunas à ESQUERDA + 2 colunas à DIREITA
+  const positions = [];
+  
+  // LADO ESQUERDO: 2 colunas (cols 0 e 1)
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < 2; col++) {
+      positions.push({
+        x: widthInit - gap * (3 - col), // Afastado à esquerda
+        y: heightInit + row * gap,
+        z: zOffset
       });
     }
+  }
+  
+  // LADO DIREITO: 2 colunas (cols 2 e 3)
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < 2; col++) {
+      positions.push({
+        x: widthInit + (cols * pieceSize) + gap * (col + 1), // Afastado à direita
+        y: heightInit + row * gap,
+        z: zOffset
+      });
+    }
+  }
+
+  // NÃO embaralhar - manter ordem original das peças com suas texturas
+  // Atribuir posições em ordem mantendo textura original
+  for (let i = 0; i < pieces.length; i++) {
+    const originalPiece = pieces[i];  // mantém correctRow/correctCol
+
+    piecesForRender.push({
+      ...originalPiece,
+      name: `piece-${i + 1}`,
+      position: positions[i]  // posição em ordem (não embaralhada)
+    });
   }
 
   return piecesForRender;
@@ -255,10 +405,19 @@ function definePiecePositions() {
 /**
  * Renderiza as peças do quebra-cabeça na cena
  * embaralhadas e com nome na cena
+ * IMPORTANTE: Usa correctRow e correctCol para manter textura fixa
  */
 function renderPieces() {
   piecesForRender.forEach((piece, index) => {
-    mountPuzzlePiece(`piece-${index + 1}`, piece.sides, piece.position);
+    // Usar correctRow e correctCol da própria peça
+    mountPuzzlePiece(
+      `piece-${index + 1}`,
+      piece.sides,
+      piece.position,
+      piece.correctRow,
+      piece.correctCol,
+      piece.correctIndex
+    );
   });
 }
 
@@ -269,13 +428,14 @@ function renderPieces() {
 function mountPuzzleSkeleton() {
   const heightInit = heightInitGlobal;
   const widthInit = widthInitGlobal;
-  const gap = pieceSize;
-  const finalHeight = heightInit + puzzleSize * gap;
+  const gap = pieceSize; // Gap padrão para skeleton centralizado
+  const finalHeight = heightInit + rows * gap;
 
   let count = 0;
 
-  for (let row = 0; row < puzzleSize; row++) {
-    for (let col = 0; col < puzzleSize; col++) {
+  // Criar skeleton baseado em rows x cols
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
       count++;
       const position = {
         x: widthInit + col * gap,
@@ -288,7 +448,7 @@ function mountPuzzleSkeleton() {
 
   mountTrashBox(finalHeight);
 
-  for (let col = 0; col < puzzleSize - 1; col++) {
+  for (let col = 0; col < cols - 1; col++) {
     count++;
     const position = {
       x: widthInit + col * (gap + 0.5),
@@ -336,13 +496,19 @@ function skeletonSphere(name, position = { x: 1, y: 1, z: -3 }) {
  * @param {string} name - Nome da peça
  * @param {SideShapes} sideShapes - Formatos dos lados da peça
  * @param {Position3D} position - Posição inicial da peça
+ * @param {number} row - Linha da peça no grid original
+ * @param {number} col - Coluna da peça no grid original
+ * @param {number} correctIndex - Índice correto da peça na solução
  */
 function mountPuzzlePiece(
   name,
   sideShapes,
-  position = { x: 0, y: 0, z: zOffset }
+  position = { x: 0, y: 0, z: zOffset },
+  row = 0,
+  col = 0,
+  correctIndex = 0
 ) {
-  const sideShapesFormatted = `top:${sideShapes.top};left:${sideShapes.left};bottom:${sideShapes.bottom};right:${sideShapes.right}`;
+  const sideShapesFormatted = `top:${sideShapes.top};left:${sideShapes.left};bottom:${sideShapes.bottom};right:${sideShapes.right};row:${row};col:${col};correctIndex:${correctIndex}`;
 
   const sceneEl = document.querySelector("a-scene");
   const puzzleGroup = document.createElement("a-entity");
@@ -368,7 +534,7 @@ function mountTrashBox(finalHeight) {
     y: finalHeight + pieceSize / 2,
     z: zOffset - pieceDepth / 2,
   });
-  trashContainer.setAttribute("width", pieceSize * puzzleSize + 0.5);
+  trashContainer.setAttribute("width", pieceSize * cols + 0.5);
   trashContainer.setAttribute("height", pieceSize + 0.5);
   trashContainer.setAttribute("color", "red");
   trashContainer.setAttribute("opacity", "0.5");
@@ -378,10 +544,13 @@ function mountTrashBox(finalHeight) {
 
 /**
  * Cria a forma da peça do quebra-cabeça com base nos formatos dos lados
+ * IMPORTANTE: UV mapping fixo por peça - nunca randomiza textura
  * @param {SideShapes} borderShapes - Formatos dos lados da peça
+ * @param {number} row - Linha da peça no grid
+ * @param {number} col - Coluna da peça no grid
  * @returns {THREE.Mesh} - Mesh 3D da peça do quebra-cabeça
  */
-function createShape(borderShapes) {
+function createShape(borderShapes, row = 0, col = 0) {
   const pieceShape = new THREE.Shape();
 
   // face de baixo
@@ -478,11 +647,14 @@ function createShape(borderShapes) {
   };
   const geometry = new THREE.ExtrudeGeometry(pieceShape, extrudeSettings);
 
-  // Material padrão
+  // Aplicar UV mapping FIXO para esta peça
+  applyUVMapping(geometry, row, col);
+
+  // Material com textura (se disponível) ou cor padrão
   const material = new THREE.MeshStandardMaterial({
-    color: 0x156289,
-    flatShading: true,
-    transparent: true,
+    color: currentTexture ? 0xffffff : 0x156289,
+    map: currentTexture || null,
+    side: THREE.DoubleSide,
   });
 
   const mesh = new THREE.Mesh(geometry, material);
@@ -490,6 +662,51 @@ function createShape(borderShapes) {
   mesh.receiveShadow = true;
 
   return mesh;
+}
+
+/**
+ * Aplica mapeamento UV para dividir a textura entre as peças
+ * IMPORTANTE: Aplica UV apenas na face FRONTAL (z=depth)
+ * @param {THREE.ExtrudeGeometry} geometry - Geometria da peça
+ * @param {number} row - Linha da peça no grid
+ * @param {number} col - Coluna da peça no grid
+ */
+function applyUVMapping(geometry, row, col) {
+  console.log(`applyUVMapping: row=${row}, col=${col}`);
+  
+  const positionAttribute = geometry.getAttribute('position');
+  const uvAttribute = geometry.getAttribute('uv');
+  
+  if (!uvAttribute || !positionAttribute) return;
+
+  const cellSizeX = 1.0 / cols;  // 0.25 para 4 colunas
+  const cellSizeY = 1.0 / rows;  // 0.333 para 3 linhas
+  
+  // Offset baseado na posição da peça no grid
+  const offsetX = col * cellSizeX;
+  const offsetY = row * cellSizeY; // SEM inversão
+
+  // Aplicar UV apenas nos vértices da face frontal (z = pieceDepth)
+  for (let i = 0; i < positionAttribute.count; i++) {
+    const x = positionAttribute.getX(i);
+    const y = positionAttribute.getY(i);
+    const z = positionAttribute.getZ(i);
+
+    // Apenas face frontal
+    if (Math.abs(z - pieceDepth) < 0.001) {
+      // Normalizar coordenadas para 0-1
+      const u = x / pieceSize;
+      const v = 1.0 - (y / pieceSize); // INVERTER V aqui para orientação correta
+
+      // Aplicar offset para posição correta no grid
+      const finalU = offsetX + (u * cellSizeX);
+      const finalV = offsetY + (v * cellSizeY);
+
+      uvAttribute.setXY(i, finalU, finalV);
+    }
+  }
+
+  uvAttribute.needsUpdate = true;
 }
 
 /* === FUNCOES UTILITÁRIAS (criadas para ajudar na criação de outros metodos e do funcionamento) === */
@@ -501,6 +718,16 @@ function createShape(borderShapes) {
  */
 function randomSideShape() {
   return Math.random() > 0.5 ? 1 : 2;
+}
+
+/**
+ * Gera array de índices embaralhados sem modificar os dados originais
+ * @param {number} total - Quantidade total de elementos
+ * @returns {Array<number>} - Array de índices embaralhados
+ */
+function getShuffledOrder(total) {
+  const arr = [...Array(total).keys()];
+  return embaralharArray(arr);
 }
 
 /**
@@ -551,6 +778,79 @@ function validatePiecesFit(sideA, sideB) {
 }
 
 /**
+ * Tenta encaixar a peça no slot correto baseado em distância
+ * @param {AFRAME.Element} pieceElement - Elemento da peça
+ * @returns {boolean} - True se encaixou, false caso contrário
+ */
+function trySnap(pieceElement) {
+  if (pieceElement.userData && pieceElement.userData.locked) {
+    return false;
+  }
+
+  const correctIndex = pieceElement.userData.correctIndex;
+  const slot = slots[correctIndex];
+  
+  const piecePos = pieceElement.getAttribute("position");
+  const slotPos = slot.position;
+  
+  // Ajustar para considerar o offset da peça (centro vs canto)
+  const adjustedSlotPos = {
+    x: slotPos.x - pieceSize / 2,
+    y: slotPos.y - pieceSize / 2,
+    z: slotPos.z - pieceDepth / 2,
+  };
+  
+  const distance = Math.sqrt(
+    Math.pow(piecePos.x - adjustedSlotPos.x, 2) +
+    Math.pow(piecePos.y - adjustedSlotPos.y, 2) +
+    Math.pow(piecePos.z - adjustedSlotPos.z, 2)
+  );
+  
+  // Se distância menor que threshold, encaixar
+  if (distance < 0.5) {
+    snap(pieceElement, adjustedSlotPos);
+    return true;
+  }
+  
+  return false;
+}
+
+/**
+ * Encaixa a peça na posição correta
+ * @param {AFRAME.Element} pieceElement - Elemento da peça
+ * @param {Object} slotPosition - Posição do slot
+ */
+function snap(pieceElement, slotPosition) {
+  pieceElement.setAttribute("position", slotPosition);
+  pieceElement.setAttribute("rotation", { x: 0, y: 0, z: 0 });
+  pieceElement.userData.locked = true;
+  
+  console.log(`Peça encaixada no slot ${pieceElement.userData.correctIndex}`);
+  
+  // Verificar se puzzle está completo
+  checkPuzzleCompletion();
+}
+
+/**
+ * Verifica se o puzzle está completo
+ */
+function checkPuzzleCompletion() {
+  let completed = 0;
+  const allPieces = document.querySelectorAll('[puzzle-piece]');
+  
+  allPieces.forEach(piece => {
+    if (piece.userData && piece.userData.locked) {
+      completed++;
+    }
+  });
+  
+  if (completed === totalPieces) {
+    console.log("🎉 Parabéns! Puzzle completo!");
+    // Aqui você pode adicionar efeitos visuais, som, etc.
+  }
+}
+
+/**
  * Move uma peça para uma posição específica no espaço 3D
  * @param {AFRAME.Element} pieceElement - O elemento A-Frame que representa a peça do quebra-cabeça.
  * @param {THREE.Vector3} skeletonPosition - A posição alvo no espaço 3D.
@@ -566,8 +866,8 @@ function movePieceToPosition(pieceElement, skeletonPosition, skeletonName) {
   const piece = pieces.find((p) => p.id === pieceSelectedId);
 
   if (skeletonType === "skeleton") {
-    const topPiece = piecesUserMounted[mountedArrayIndex + puzzleSize];
-    const bottomPiece = piecesUserMounted[mountedArrayIndex - puzzleSize];
+    const topPiece = piecesUserMounted[mountedArrayIndex + cols];
+    const bottomPiece = piecesUserMounted[mountedArrayIndex - cols];
     const leftPiece = piecesUserMounted[mountedArrayIndex - 1];
     const rightPiece = piecesUserMounted[mountedArrayIndex + 1];
 
@@ -592,6 +892,9 @@ function movePieceToPosition(pieceElement, skeletonPosition, skeletonName) {
     y: skeletonPosition.y - pieceSize / 2,
     z: skeletonPosition.z - pieceDepth / 2,
   });
+
+  // Tentar encaixe automático
+  trySnap(pieceElement);
 
   const fill = piecesUserMounted.includes(null);
 
@@ -631,13 +934,21 @@ AFRAME.registerComponent("puzzle-piece", {
     left: { type: "int", default: 0 },
     bottom: { type: "int", default: 0 },
     right: { type: "int", default: 0 },
+    row: { type: "int", default: 0 },
+    col: { type: "int", default: 0 },
+    correctIndex: { type: "int", default: 0 },
   },
 
   init: function () {
     const size = pieceSize;
     const depth = pieceDepth;
-    const pieceShape = createShape(this.data);
+    const pieceShape = createShape(this.data, this.data.row, this.data.col);
     const position = this.el.getAttribute("position");
+
+    // Armazenar correctIndex no userData para verificação de encaixe
+    this.el.userData = this.el.userData || {};
+    this.el.userData.correctIndex = this.data.correctIndex;
+    this.el.userData.locked = false;
 
     this.el.setObject3D("mesh", pieceShape);
     this.el.setAttribute("position", {
@@ -772,6 +1083,17 @@ AFRAME.registerComponent("puzzle-component", {
   handleMouseClick: function () {
     const currentPosition = this.el.getAttribute("position");
     const prefixName = this.data.split("-")[0];
+
+    // Se R está pressionado e é uma peça, rotacionar
+    if (isRotateKeyPressed && prefixName === "piece") {
+      const currentRotation = this.el.getAttribute("rotation");
+      this.el.setAttribute("rotation", {
+        x: currentRotation.x,
+        y: currentRotation.y,
+        z: currentRotation.z + 90
+      });
+      return;
+    }
 
     if (
       lineSelection.active &&
