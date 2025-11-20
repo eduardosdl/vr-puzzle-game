@@ -126,8 +126,8 @@ const lineSelection = new Line();
 const cursor = document.querySelector("#cursor");
 const pieceSize = 1;
 const pieceDepth = 1;
-// Configuração do puzzle: 3 linhas x 4 colunas = 12 peças
-const rows = 3;
+// Configuração do puzzle: 4 linhas x 4 colunas = 16 peças
+const rows = 4;
 const cols = 4;
 const totalPieces = rows * cols;
 const puzzleSize = 4; // mantido para compatibilidade
@@ -544,7 +544,7 @@ function mountTrashBox(finalHeight) {
 
 /**
  * Cria a forma da peça do quebra-cabeça com base nos formatos dos lados
- * IMPORTANTE: UV mapping fixo por peça - nunca randomiza textura
+ * IMPORTANTE: UV mapping fixo por peça - cada peça mostra apenas sua parte da imagem
  * @param {SideShapes} borderShapes - Formatos dos lados da peça
  * @param {number} row - Linha da peça no grid
  * @param {number} col - Coluna da peça no grid
@@ -647,14 +647,17 @@ function createShape(borderShapes, row = 0, col = 0) {
   };
   const geometry = new THREE.ExtrudeGeometry(pieceShape, extrudeSettings);
 
-  // Aplicar UV mapping FIXO para esta peça
+  // Aplicar UV mapping FIXO para esta peça (recorta a parte correta da imagem)
   applyUVMapping(geometry, row, col);
 
   // Material com textura (se disponível) ou cor padrão
+  // Usar cor branca (0xffffff) para não tingir a textura
   const material = new THREE.MeshStandardMaterial({
     color: currentTexture ? 0xffffff : 0x156289,
     map: currentTexture || null,
     side: THREE.DoubleSide,
+    metalness: 0.1,
+    roughness: 0.8,
   });
 
   const mesh = new THREE.Mesh(geometry, material);
@@ -666,25 +669,35 @@ function createShape(borderShapes, row = 0, col = 0) {
 
 /**
  * Aplica mapeamento UV para dividir a textura entre as peças
- * IMPORTANTE: Aplica UV apenas na face FRONTAL (z=depth)
+ * IMPORTANTE: Recorta a imagem corretamente para cada peça
+ * Cada peça mostra apenas sua parte da imagem baseada em row/col
  * @param {THREE.ExtrudeGeometry} geometry - Geometria da peça
  * @param {number} row - Linha da peça no grid
  * @param {number} col - Coluna da peça no grid
  */
 function applyUVMapping(geometry, row, col) {
-  console.log(`applyUVMapping: row=${row}, col=${col}`);
-  
   const positionAttribute = geometry.getAttribute('position');
   const uvAttribute = geometry.getAttribute('uv');
   
-  if (!uvAttribute || !positionAttribute) return;
+  if (!uvAttribute || !positionAttribute) {
+    console.warn('Atributos UV ou position não encontrados');
+    return;
+  }
 
-  const cellSizeX = 1.0 / cols;  // 0.25 para 4 colunas
-  const cellSizeY = 1.0 / rows;  // 0.333 para 3 linhas
+  // Calcular bounding box para normalizar coordenadas
+  geometry.computeBoundingBox();
+  const bb = geometry.boundingBox;
   
-  // Offset baseado na posição da peça no grid
-  const offsetX = col * cellSizeX;
-  const offsetY = row * cellSizeY; // SEM inversão
+  const width = bb.max.x - bb.min.x;
+  const height = bb.max.y - bb.min.y;
+
+  // Calcular o recorte UV baseado na posição da peça no grid
+  const u0 = col / cols;
+  const u1 = (col + 1) / cols;
+  
+  // Inverter V para orientação correta (OpenGL convention)
+  const v0 = 1.0 - (row + 1) / rows;
+  const v1 = 1.0 - row / rows;
 
   // Aplicar UV apenas nos vértices da face frontal (z = pieceDepth)
   for (let i = 0; i < positionAttribute.count; i++) {
@@ -692,21 +705,26 @@ function applyUVMapping(geometry, row, col) {
     const y = positionAttribute.getY(i);
     const z = positionAttribute.getZ(i);
 
-    // Apenas face frontal
+    // Apenas face frontal (z = pieceDepth, com pequena tolerância)
     if (Math.abs(z - pieceDepth) < 0.001) {
-      // Normalizar coordenadas para 0-1
-      const u = x / pieceSize;
-      const v = 1.0 - (y / pieceSize); // INVERTER V aqui para orientação correta
+      // Normalizar coordenadas x,y para 0-1 dentro da bounding box
+      const normalizedX = (x - bb.min.x) / width;
+      const normalizedY = (y - bb.min.y) / height;
 
-      // Aplicar offset para posição correta no grid
-      const finalU = offsetX + (u * cellSizeX);
-      const finalV = offsetY + (v * cellSizeY);
+      // Aplicar offset do recorte UV desta peça
+      const finalU = u0 + normalizedX * (u1 - u0);
+      const finalV = v0 + normalizedY * (v1 - v0);
 
       uvAttribute.setXY(i, finalU, finalV);
+    } else {
+      // Laterais e face traseira: UV neutro (cinza ou cor sólida)
+      uvAttribute.setXY(i, 0, 0);
     }
   }
 
   uvAttribute.needsUpdate = true;
+  
+  console.log(`UV aplicado: peça [${row}, ${col}] → U:[${u0.toFixed(3)}, ${u1.toFixed(3)}] V:[${v0.toFixed(3)}, ${v1.toFixed(3)}]`);
 }
 
 /* === FUNCOES UTILITÁRIAS (criadas para ajudar na criação de outros metodos e do funcionamento) === */
