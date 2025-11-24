@@ -93,6 +93,69 @@
  * @method setEnd(position) - Define o ponto final da linha
  * @method reset() - Reseta a linha para o estado inicial
  */
+
+document.addEventListener("DOMContentLoaded", function () {
+  // Pega o código da URL atual
+  let userCode = window.location;
+  userCode = userCode.search.replace("?", "");
+  console.log(userCode);
+
+  // Salva no localStorage
+  if (userCode) {
+    localStorage.setItem("userCode", userCode);
+    console.log("Código do usuário salvo:", userCode);
+  }
+});
+
+function saveScores() {
+  console.log("pontos", pontos);
+
+  let user = localStorage.getItem("userCode");
+
+  fetch(
+    `https://solid-palm-tree-6q6qqgw9grxcrv7x-3000.app.github.dev/users?code=${user}`
+  )
+    .then(async (res) => {
+     return await res.json();
+    })
+    .then((user) => {
+    
+    console.log("user", user)
+    
+      let scoreData = {
+        userId: user[0].id,
+        experienceId: 1,
+        score: pontos
+      };
+    
+    console.log('score', scoreData)
+
+      fetch(
+        `https://upgraded-happiness-9rvrr9w9ppj3v64-3000.app.github.dev/experienceScores`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(scoreData),
+        }
+      )
+        .then((res) => res.json())
+        .then((data) => {
+          console.log("Dados enviados com sucesso:", data);
+        })
+        .catch((error) => {
+          console.error("Erro ao salvar os dados:", error);
+        });
+    });
+  
+
+  setTimeout(() => {
+    window.location.href =
+      "https://upgraded-happiness-9rvrr9w9ppj3v64-3000.app.github.dev/pages/auth";
+  }, 10000)
+
+}
 class Line {
   constructor() {
     this.active = false;
@@ -934,6 +997,7 @@ function movePieceToPosition(pieceElement, skeletonPosition, skeletonName) {
 
     if (isValid) {
       console.log("parabéns, você completou o quebra-cabeça!");
+      saveScores();
     } else {
       console.log("quebra-cabeça incorreto, tente novamente!");
     }
