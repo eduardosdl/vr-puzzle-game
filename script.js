@@ -387,17 +387,21 @@ function definePiecePositions() {
     }
   }
 
-  // NÃO embaralhar - manter ordem original das peças com suas texturas
-  // Atribuir posições em ordem mantendo textura original
+  // CORREÇÃO: EMBARALHAR as posições antes de atribuir
+  const shuffledPositions = embaralharArray(positions);
+
+  // Atribuir posições embaralhadas mantendo textura original
   for (let i = 0; i < pieces.length; i++) {
     const originalPiece = pieces[i];  // mantém correctRow/correctCol
 
     piecesForRender.push({
       ...originalPiece,
       name: `piece-${i + 1}`,
-      position: positions[i]  // posição em ordem (não embaralhada)
+      position: shuffledPositions[i]  // posição EMBARALHADA
     });
   }
+
+  console.log('Posições embaralhadas:', shuffledPositions.slice(0, 3));
 
   return piecesForRender;
 }
@@ -695,9 +699,11 @@ function applyUVMapping(geometry, row, col) {
   const u0 = col / cols;
   const u1 = (col + 1) / cols;
   
-  // Inverter V para orientação correta (OpenGL convention)
+  // CORREÇÃO: INVERTER V para corrigir orientação (texturas de cabeça para baixo)
   const v0 = 1.0 - (row + 1) / rows;
   const v1 = 1.0 - row / rows;
+
+  console.log(`UV peça [${row}, ${col}] → U:[${u0.toFixed(3)}, ${u1.toFixed(3)}] V:[${v0.toFixed(3)}, ${v1.toFixed(3)}]`);
 
   // Aplicar UV apenas nos vértices da face frontal (z = pieceDepth)
   for (let i = 0; i < positionAttribute.count; i++) {
@@ -709,7 +715,7 @@ function applyUVMapping(geometry, row, col) {
     if (Math.abs(z - pieceDepth) < 0.001) {
       // Normalizar coordenadas x,y para 0-1 dentro da bounding box
       const normalizedX = (x - bb.min.x) / width;
-      const normalizedY = (y - bb.min.y) / height;
+      const normalizedY = 1.0 - ((y - bb.min.y) / height); // INVERTER Y aqui
 
       // Aplicar offset do recorte UV desta peça
       const finalU = u0 + normalizedX * (u1 - u0);
@@ -962,6 +968,8 @@ AFRAME.registerComponent("puzzle-piece", {
     const depth = pieceDepth;
     const pieceShape = createShape(this.data, this.data.row, this.data.col);
     const position = this.el.getAttribute("position");
+
+    console.log(`Criando peça: row=${this.data.row}, col=${this.data.col}, textura=${!!currentTexture}`);
 
     // Armazenar correctIndex no userData para verificação de encaixe
     this.el.userData = this.el.userData || {};
