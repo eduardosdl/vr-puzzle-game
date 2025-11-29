@@ -32,7 +32,7 @@
         padding: 10px;
         border: none;
         border-radius: 5px;
-        background: #4CAF50;
+        background: #4caf50;
         color: white;
         font-size: 14px;
         cursor: pointer;
@@ -111,7 +111,11 @@
       <p>🖱️ <strong>Olhar:</strong> Mova o mouse</p>
       <p>👁️ <strong>Selecionar:</strong> Fixe o olhar</p>
       <p>🔄 <strong>Rotacionar:</strong> Pressione <kbd>R</kbd></p>
-      <p><small>Mantenha <kbd>R</kbd> pressionado enquanto seleciona uma peça</small></p>
+      <p>
+        <small
+          >Mantenha <kbd>R</kbd> pressionado enquanto seleciona uma peça</small
+        >
+      </p>
     </div>
 
     <a-scene id="scene">
@@ -132,6 +136,15 @@
         line="start: 0 0 0; end: 0 0 0; color: red"
         transparent="true"
       ></a-entity>
+
+      <a-text
+        id="pieces-left"
+        value="Area de remanejamento"
+        color="#FF0000"
+        position="-1.1 5.5 -5"
+        width="5"
+        rotation="30 0 0"
+      ></a-text>
 
       <a-entity camera wasd-controls look-controls position="0 1.6 0">
         <a-plane
@@ -170,11 +183,11 @@
     <script>
       // Definir imagens disponíveis
       const availableImages = [
-        'images/puzzle1.jpg',
-        'images/puzzle2.jpeg',
-        'images/puzzle3.jpg'
+        "images/puzzle1.jpg",
+        "images/puzzle2.jpeg",
+        "images/puzzle3.jpg",
       ];
-      
+
       // Função para selecionar puzzle
       function selectPuzzle(index) {
         loadPuzzleTexture(availableImages[index]);

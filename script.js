@@ -116,19 +116,18 @@ function saveScores() {
     `https://solid-palm-tree-6q6qqgw9grxcrv7x-3000.app.github.dev/users?code=${user}`
   )
     .then(async (res) => {
-     return await res.json();
+      return await res.json();
     })
     .then((user) => {
-    
-    console.log("user", user)
-    
+      console.log("user", user);
+
       let scoreData = {
         userId: user[0].id,
         experienceId: 1,
-        score: pontos
+        score: pontos,
       };
-    
-    console.log('score', scoreData)
+
+      console.log("score", scoreData);
 
       fetch(
         `https://upgraded-happiness-9rvrr9w9ppj3v64-3000.app.github.dev/experienceScores`,
@@ -148,13 +147,11 @@ function saveScores() {
           console.error("Erro ao salvar os dados:", error);
         });
     });
-  
 
   setTimeout(() => {
     window.location.href =
       "https://upgraded-happiness-9rvrr9w9ppj3v64-3000.app.github.dev/pages/auth";
-  }, 10000)
-
+  }, 10000);
 }
 class Line {
   constructor() {
@@ -199,7 +196,7 @@ const heightInitGlobal = 1;
 const widthInitGlobal = -1.5;
 
 //Configuração de imagens do puzzle
-let currentPuzzle = 'puzzle1';
+let currentPuzzle = "puzzle1";
 let currentLevel = 1;
 let currentTexture = null;
 
@@ -207,14 +204,14 @@ let currentTexture = null;
 let isRotateKeyPressed = false;
 
 // Detectar tecla R para rotação
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'r' || e.key === 'R') {
+document.addEventListener("keydown", (e) => {
+  if (e.key === "r" || e.key === "R") {
     isRotateKeyPressed = true;
   }
 });
 
-document.addEventListener('keyup', (e) => {
-  if (e.key === 'r' || e.key === 'R') {
+document.addEventListener("keyup", (e) => {
+  if (e.key === "r" || e.key === "R") {
     isRotateKeyPressed = false;
   }
 });
@@ -245,7 +242,7 @@ let piecesForRender = definePiecePositions();
 let piecesUserMounted = new Array(totalPieces).fill(null);
 
 // Carregar textura padrão na inicialização
-loadPuzzleTexture('images/puzzle1.jpg');
+loadPuzzleTexture("images/puzzle1.jpg");
 
 mountPuzzleSkeleton();
 renderPieces();
@@ -271,14 +268,14 @@ function loadPuzzleTexture(imageUrl) {
       currentTexture.magFilter = THREE.LinearFilter;
       currentTexture.flipY = false;
       console.log(`Textura carregada: ${imageUrl}`);
-      
+
       // Atualizar material de todas as peças existentes
       updatePiecesTexture();
     },
     undefined,
     (error) => {
       console.warn(`Erro ao carregar textura ${imageUrl}:`, error);
-      console.log('Usando cor padrão para as peças');
+      console.log("Usando cor padrão para as peças");
     }
   );
 }
@@ -288,12 +285,12 @@ function loadPuzzleTexture(imageUrl) {
  */
 function updatePiecesTexture() {
   if (!currentTexture) return;
-  
+
   piecesForRender.forEach((piece) => {
     const element = document.querySelector(`#${piece.name}`);
     if (element) {
       // Buscar o mesh no object3D
-      const mesh = element.getObject3D('mesh');
+      const mesh = element.getObject3D("mesh");
       if (mesh && mesh.material) {
         mesh.material.map = currentTexture;
         mesh.material.color.set(0xffffff); // Branco para não tingir a textura
@@ -315,20 +312,20 @@ function resetPuzzle() {
       element.parentNode.removeChild(element);
     }
   });
-  
+
   // Limpar array de peças montadas
   piecesUserMounted.fill(null);
-  
+
   // Remover skeleton
   const skeletonPieces = document.querySelectorAll('[id^="skeleton-"]');
-  skeletonPieces.forEach(el => el.parentNode.removeChild(el));
-  
+  skeletonPieces.forEach((el) => el.parentNode.removeChild(el));
+
   // Recriar slots
   slots = createSlots();
-  
+
   // IMPORTANTE: Reembaralhar APENAS posições, manter textura original de cada peça
   piecesForRender = definePiecePositions();
-  
+
   mountPuzzleSkeleton();
   renderPieces();
 }
@@ -354,11 +351,7 @@ function generatePieces() {
       // o calculo dentro dos arrays "[]" serve para pegar o lado oposto da peça vizinha
       // precisa de tudo isso pois calcula a posição corrita no array
       const bottomSide =
-        row === 0
-          ? 0
-          : pieces[(row - 1) * cols + col].sides.top === 1
-          ? 2
-          : 1;
+        row === 0 ? 0 : pieces[(row - 1) * cols + col].sides.top === 1 ? 2 : 1;
       const leftSide =
         col === 0
           ? 0
@@ -369,8 +362,8 @@ function generatePieces() {
       const piece = {
         id: crypto.randomUUID(),
         correctIndex: index, // Índice correto na solução final
-        correctRow: row,     // Linha correta
-        correctCol: col,     // Coluna correta
+        correctRow: row, // Linha correta
+        correctCol: col, // Coluna correta
         sides: {
           top: topSide,
           right: rightSide,
@@ -422,30 +415,30 @@ function createSlots() {
 function definePiecePositions() {
   const heightInit = heightInitGlobal;
   const widthInit = widthInitGlobal;
-  const gap = pieceSize * 1.2;
+  const gap = pieceSize * 1.5;
   const piecesForRender = [];
 
   // Criar array de posições disponíveis: 2 colunas à ESQUERDA + 2 colunas à DIREITA
   const positions = [];
-  
+
   // LADO ESQUERDO: 2 colunas (cols 0 e 1)
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < 2; col++) {
       positions.push({
         x: widthInit - gap * (3 - col), // Afastado à esquerda
         y: heightInit + row * gap,
-        z: zOffset
+        z: zOffset,
       });
     }
   }
-  
+
   // LADO DIREITO: 2 colunas (cols 2 e 3)
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < 2; col++) {
       positions.push({
-        x: widthInit + (cols * pieceSize) + gap * (col + 1), // Afastado à direita
+        x: widthInit + cols * pieceSize + gap * (col + 1), // Afastado à direita
         y: heightInit + row * gap,
-        z: zOffset
+        z: zOffset,
       });
     }
   }
@@ -455,16 +448,16 @@ function definePiecePositions() {
 
   // Atribuir posições embaralhadas mantendo textura original
   for (let i = 0; i < pieces.length; i++) {
-    const originalPiece = pieces[i];  // mantém correctRow/correctCol
+    const originalPiece = pieces[i]; // mantém correctRow/correctCol
 
     piecesForRender.push({
       ...originalPiece,
       name: `piece-${i + 1}`,
-      position: shuffledPositions[i]  // posição EMBARALHADA
+      position: shuffledPositions[i], // posição EMBARALHADA
     });
   }
 
-  console.log('Posições embaralhadas:', shuffledPositions.slice(0, 3));
+  console.log("Posições embaralhadas:", shuffledPositions.slice(0, 3));
 
   return piecesForRender;
 }
@@ -743,30 +736,34 @@ function createShape(borderShapes, row = 0, col = 0) {
  * @param {number} col - Coluna da peça no grid
  */
 function applyUVMapping(geometry, row, col) {
-  const positionAttribute = geometry.getAttribute('position');
-  const uvAttribute = geometry.getAttribute('uv');
-  
+  const positionAttribute = geometry.getAttribute("position");
+  const uvAttribute = geometry.getAttribute("uv");
+
   if (!uvAttribute || !positionAttribute) {
-    console.warn('Atributos UV ou position não encontrados');
+    console.warn("Atributos UV ou position não encontrados");
     return;
   }
 
   // Calcular bounding box para normalizar coordenadas
   geometry.computeBoundingBox();
   const bb = geometry.boundingBox;
-  
+
   const width = bb.max.x - bb.min.x;
   const height = bb.max.y - bb.min.y;
 
   // Calcular o recorte UV baseado na posição da peça no grid
   const u0 = col / cols;
   const u1 = (col + 1) / cols;
-  
+
   // CORREÇÃO: INVERTER V para corrigir orientação (texturas de cabeça para baixo)
   const v0 = 1.0 - (row + 1) / rows;
   const v1 = 1.0 - row / rows;
 
-  console.log(`UV peça [${row}, ${col}] → U:[${u0.toFixed(3)}, ${u1.toFixed(3)}] V:[${v0.toFixed(3)}, ${v1.toFixed(3)}]`);
+  console.log(
+    `UV peça [${row}, ${col}] → U:[${u0.toFixed(3)}, ${u1.toFixed(
+      3
+    )}] V:[${v0.toFixed(3)}, ${v1.toFixed(3)}]`
+  );
 
   // Aplicar UV apenas nos vértices da face frontal (z = pieceDepth)
   for (let i = 0; i < positionAttribute.count; i++) {
@@ -778,7 +775,7 @@ function applyUVMapping(geometry, row, col) {
     if (Math.abs(z - pieceDepth) < 0.001) {
       // Normalizar coordenadas x,y para 0-1 dentro da bounding box
       const normalizedX = (x - bb.min.x) / width;
-      const normalizedY = 1.0 - ((y - bb.min.y) / height); // INVERTER Y aqui
+      const normalizedY = 1.0 - (y - bb.min.y) / height; // INVERTER Y aqui
 
       // Aplicar offset do recorte UV desta peça
       const finalU = u0 + normalizedX * (u1 - u0);
@@ -792,8 +789,12 @@ function applyUVMapping(geometry, row, col) {
   }
 
   uvAttribute.needsUpdate = true;
-  
-  console.log(`UV aplicado: peça [${row}, ${col}] → U:[${u0.toFixed(3)}, ${u1.toFixed(3)}] V:[${v0.toFixed(3)}, ${v1.toFixed(3)}]`);
+
+  console.log(
+    `UV aplicado: peça [${row}, ${col}] → U:[${u0.toFixed(3)}, ${u1.toFixed(
+      3
+    )}] V:[${v0.toFixed(3)}, ${v1.toFixed(3)}]`
+  );
 }
 
 /* === FUNCOES UTILITÁRIAS (criadas para ajudar na criação de outros metodos e do funcionamento) === */
@@ -876,29 +877,29 @@ function trySnap(pieceElement) {
 
   const correctIndex = pieceElement.userData.correctIndex;
   const slot = slots[correctIndex];
-  
+
   const piecePos = pieceElement.getAttribute("position");
   const slotPos = slot.position;
-  
+
   // Ajustar para considerar o offset da peça (centro vs canto)
   const adjustedSlotPos = {
     x: slotPos.x - pieceSize / 2,
     y: slotPos.y - pieceSize / 2,
     z: slotPos.z - pieceDepth / 2,
   };
-  
+
   const distance = Math.sqrt(
     Math.pow(piecePos.x - adjustedSlotPos.x, 2) +
-    Math.pow(piecePos.y - adjustedSlotPos.y, 2) +
-    Math.pow(piecePos.z - adjustedSlotPos.z, 2)
+      Math.pow(piecePos.y - adjustedSlotPos.y, 2) +
+      Math.pow(piecePos.z - adjustedSlotPos.z, 2)
   );
-  
+
   // Se distância menor que threshold, encaixar
   if (distance < 0.5) {
     snap(pieceElement, adjustedSlotPos);
     return true;
   }
-  
+
   return false;
 }
 
@@ -911,9 +912,9 @@ function snap(pieceElement, slotPosition) {
   pieceElement.setAttribute("position", slotPosition);
   pieceElement.setAttribute("rotation", { x: 0, y: 0, z: 0 });
   pieceElement.userData.locked = true;
-  
+
   console.log(`Peça encaixada no slot ${pieceElement.userData.correctIndex}`);
-  
+
   // Verificar se puzzle está completo
   checkPuzzleCompletion();
 }
@@ -923,14 +924,14 @@ function snap(pieceElement, slotPosition) {
  */
 function checkPuzzleCompletion() {
   let completed = 0;
-  const allPieces = document.querySelectorAll('[puzzle-piece]');
-  
-  allPieces.forEach(piece => {
+  const allPieces = document.querySelectorAll("[puzzle-piece]");
+
+  allPieces.forEach((piece) => {
     if (piece.userData && piece.userData.locked) {
       completed++;
     }
   });
-  
+
   if (completed === totalPieces) {
     console.log("🎉 Parabéns! Puzzle completo!");
     // Aqui você pode adicionar efeitos visuais, som, etc.
@@ -952,21 +953,45 @@ function movePieceToPosition(pieceElement, skeletonPosition, skeletonName) {
   const pieceSelectedId = piecesForRender.find((p) => p.name === pieceName).id;
   const piece = pieces.find((p) => p.id === pieceSelectedId);
 
+  // Se mover para a lixeira, remover a peça do array de peças posicionadas
+  if (skeletonType === "trash") {
+    const previousIndex = piecesUserMounted.findIndex(
+      (p) => p && p.id === piece.id
+    );
+    if (previousIndex !== -1) {
+      piecesUserMounted[previousIndex] = null;
+    }
+    // Garantir que não fique marcada como travada
+    if (pieceElement.userData) {
+      pieceElement.userData.locked = false;
+    }
+  }
+
   if (skeletonType === "skeleton") {
     const topPiece = piecesUserMounted[mountedArrayIndex + cols];
     const bottomPiece = piecesUserMounted[mountedArrayIndex - cols];
     const leftPiece = piecesUserMounted[mountedArrayIndex - 1];
     const rightPiece = piecesUserMounted[mountedArrayIndex + 1];
 
-    if (
-      (topPiece &&
-        !validatePiecesFit(piece.sides.top, topPiece.sides.bottom)) ||
-      (rightPiece &&
-        !validatePiecesFit(piece.sides.right, rightPiece.sides.left)) ||
-      (bottomPiece &&
-        !validatePiecesFit(piece.sides.bottom, bottomPiece.sides.top)) ||
-      (leftPiece && !validatePiecesFit(piece.sides.left, leftPiece.sides.right))
-    ) {
+    // Ignora a própria peça ao validar encaixes (caso esteja sendo movida de outro slot)
+    const invalidTop =
+      topPiece &&
+      topPiece.id !== piece.id &&
+      !validatePiecesFit(piece.sides.top, topPiece.sides.bottom);
+    const invalidRight =
+      rightPiece &&
+      rightPiece.id !== piece.id &&
+      !validatePiecesFit(piece.sides.right, rightPiece.sides.left);
+    const invalidBottom =
+      bottomPiece &&
+      bottomPiece.id !== piece.id &&
+      !validatePiecesFit(piece.sides.bottom, bottomPiece.sides.top);
+    const invalidLeft =
+      leftPiece &&
+      leftPiece.id !== piece.id &&
+      !validatePiecesFit(piece.sides.left, leftPiece.sides.right);
+
+    if (invalidTop || invalidRight || invalidBottom || invalidLeft) {
       showErrorMessage();
       return;
     }
@@ -1033,7 +1058,11 @@ AFRAME.registerComponent("puzzle-piece", {
     const pieceShape = createShape(this.data, this.data.row, this.data.col);
     const position = this.el.getAttribute("position");
 
-    console.log(`Criando peça: row=${this.data.row}, col=${this.data.col}, textura=${!!currentTexture}`);
+    console.log(
+      `Criando peça: row=${this.data.row}, col=${
+        this.data.col
+      }, textura=${!!currentTexture}`
+    );
 
     // Armazenar correctIndex no userData para verificação de encaixe
     this.el.userData = this.el.userData || {};
@@ -1180,7 +1209,7 @@ AFRAME.registerComponent("puzzle-component", {
       this.el.setAttribute("rotation", {
         x: currentRotation.x,
         y: currentRotation.y,
-        z: currentRotation.z + 90
+        z: currentRotation.z + 90,
       });
       return;
     }
