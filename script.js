@@ -97,18 +97,38 @@
 // Captura o código do usuário da URL e salva no localStorage
 document.addEventListener("DOMContentLoaded", function () {
   // Pega o código da URL atual
-  let userCode = window.location;
-  userCode = userCode.search.replace("?", "");
-  console.log("Código capturado da URL:", userCode);
+  let userCode = window.location.search.replace("?", "");
+  console.log("Código capturado:", userCode);
 
   // Salva no localStorage
   if (userCode) {
     localStorage.setItem("userCode", userCode);
-    console.log("✅ Código do usuário salvo no localStorage:", userCode);
-  } else {
-    console.warn("⚠️ Nenhum código encontrado na URL");
+    console.log("✅ Código do usuário salvo:", userCode);
   }
+  
+  // Atualizar o display do código na interface
+  updateUserCodeDisplay();
 });
+
+/**
+ * Atualiza o display visual do código do usuário na interface
+ */
+function updateUserCodeDisplay() {
+  const codeDisplay = document.getElementById("code-value");
+  const userCode = localStorage.getItem("userCode");
+  
+  if (codeDisplay) {
+    if (userCode) {
+      codeDisplay.textContent = userCode;
+      codeDisplay.parentElement.style.background = "#d4edda";
+      codeDisplay.parentElement.style.color = "#155724";
+    } else {
+      codeDisplay.textContent = "Nenhum código";
+      codeDisplay.parentElement.style.background = "#f8d7da";
+      codeDisplay.parentElement.style.color = "#721c24";
+    }
+  }
+}
 
 // Variável global para pontuação
 let pontos = 0;
