@@ -94,43 +94,62 @@
  * @method reset() - Reseta a linha para o estado inicial
  */
 
+// Captura o código do usuário da URL e salva no localStorage
 document.addEventListener("DOMContentLoaded", function () {
   // Pega o código da URL atual
   let userCode = window.location;
   userCode = userCode.search.replace("?", "");
-  console.log(userCode);
+  console.log("Código capturado da URL:", userCode);
 
   // Salva no localStorage
   if (userCode) {
     localStorage.setItem("userCode", userCode);
-    console.log("Código do usuário salvo:", userCode);
+    console.log("✅ Código do usuário salvo no localStorage:", userCode);
+  } else {
+    console.warn("⚠️ Nenhum código encontrado na URL");
   }
 });
 
+// Variável global para pontuação
+let pontos = 0;
+
+/**
+ * Salva a pontuação do usuário no sistema de rank
+ * Segue o padrão da API do exemplo fornecido
+ */
 function saveScores() {
-  console.log("pontos", pontos);
+  console.log("💾 Salvando pontuação:", pontos);
 
   let user = localStorage.getItem("userCode");
 
+  if (!user) {
+    console.error("❌ Código do usuário não encontrado no localStorage!");
+    return;
+  }
+
+  console.log("🔍 Buscando usuário com código:", user);
+
+  // Busca o usuário pelo código
   fetch(
-    `https://solid-palm-tree-6q6qqgw9grxcrv7x-3000.app.github.dev/users?code=${user}`
+    `https://base-presentation-vrar.onrender.com/users?${user}`
   )
     .then(async (res) => {
       return await res.json();
     })
     .then((user) => {
-      console.log("user", user);
+      console.log("✅ Usuário encontrado:", user);
 
       let scoreData = {
         userId: user[0].id,
-        experienceId: 1,
+        experienceId: 1, // ID da experiência VR Puzzle Game
         score: pontos,
       };
 
-      console.log("score", scoreData);
+      console.log("📤 Enviando pontuação:", scoreData);
 
+      // Envia a pontuação para o servidor
       fetch(
-        `https://upgraded-happiness-9rvrr9w9ppj3v64-3000.app.github.dev/experienceScores`,
+        `https://base-presentation-vrar.onrender.com/experienceScores`,
         {
           method: "POST",
           headers: {
@@ -141,16 +160,20 @@ function saveScores() {
       )
         .then((res) => res.json())
         .then((data) => {
-          console.log("Dados enviados com sucesso:", data);
+          console.log("✅ Pontuação salva com sucesso:", data);
         })
         .catch((error) => {
-          console.error("Erro ao salvar os dados:", error);
+          console.error("❌ Erro ao salvar a pontuação:", error);
         });
+    })
+    .catch((error) => {
+      console.error("❌ Erro ao buscar usuário:", error);
     });
 
+  // Redireciona após 10 segundos
   setTimeout(() => {
     window.location.href =
-      "https://upgraded-happiness-9rvrr9w9ppj3v64-3000.app.github.dev/pages/auth";
+      "https://base-presentation-vrar.onrender.com/pages/auth";
   }, 10000);
 }
 class Line {
@@ -1011,7 +1034,7 @@ function movePieceToPosition(pieceElement, skeletonPosition, skeletonName) {
   const fill = piecesUserMounted.includes(null);
 
   if (!fill) {
-    console.log("puzzle completo!");
+    console.log("🧩 Puzzle completo! Verificando...");
 
     console.log("piecesUserMounted", piecesUserMounted);
     console.log("piecesForRender", pieces);
@@ -1021,10 +1044,16 @@ function movePieceToPosition(pieceElement, skeletonPosition, skeletonName) {
     });
 
     if (isValid) {
-      console.log("parabéns, você completou o quebra-cabeça!");
+      console.log("🎉 Parabéns! Você completou o quebra-cabeça!");
+      
+      // Calcula pontos baseado no número de peças (100 pontos por peça)
+      pontos = totalPieces * 100;
+      console.log("🏆 Pontos obtidos:", pontos);
+      
+      // Salva a pontuação
       saveScores();
     } else {
-      console.log("quebra-cabeça incorreto, tente novamente!");
+      console.log("❌ Quebra-cabeça incorreto, tente novamente!");
     }
   }
 }
